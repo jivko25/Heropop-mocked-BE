@@ -5,7 +5,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Routes
 const apiRouter = require('./routes');
@@ -29,8 +29,14 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Main API routes mounted under /api
 app.use('/api', apiRouter);
 
-app.listen(PORT, () => {
-  console.log(`Mock API listening on http://localhost:${PORT}`);
-  console.log(`Swagger docs available at http://localhost:${PORT}/api/docs`);
-});
+// Export for Vercel serverless
+module.exports = app;
+
+// Start server only if not in Vercel environment
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`Mock API listening on http://localhost:${PORT}`);
+    console.log(`Swagger docs available at http://localhost:${PORT}/api/docs`);
+  });
+}
 
