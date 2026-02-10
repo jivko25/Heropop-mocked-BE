@@ -23,12 +23,29 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Swagger JSON spec endpoint (for Swagger UI to load)
+app.get('/api/docs/swagger.json', (req, res) => {
+  const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
+  const baseUrl = `${protocol}://${host}`;
+  
+  const specWithUrl = JSON.parse(JSON.stringify(swaggerSpec));
+  specWithUrl.servers = [
+    { url: baseUrl, description: 'Current server' },
+    { url: 'http://localhost:3000', description: 'Local development server' },
+  ];
+  
+  res.setHeader('Content-Type', 'application/json');
+  res.send(specWithUrl);
+});
+
 // Swagger UI docs under /api/docs
 // Configure Swagger UI for Vercel compatibility
 const swaggerUiOptions = {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'Mock Backend API Documentation',
   swaggerOptions: {
+    url: '/api/docs/swagger.json', // Use the JSON endpoint
     persistAuthorization: true,
     displayRequestDuration: true,
     tryItOutEnabled: true,
@@ -38,25 +55,11 @@ const swaggerUiOptions = {
   },
 };
 
-// Dynamic swagger setup that updates server URL based on request
+// Serve Swagger UI static files
 app.use('/api/docs', swaggerUi.serve);
-app.get('/api/docs', (req, res, next) => {
-  // Update swagger spec with current request URL for Vercel
-  const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
-  const baseUrl = `${protocol}://${host}`;
-  
-  // Create a copy of swagger spec with updated server URL
-  const specWithUrl = {
-    ...swaggerSpec,
-    servers: [
-      { url: baseUrl, description: 'Current server' },
-      { url: 'http://localhost:3000', description: 'Local development server' },
-    ],
-  };
-  
-  return swaggerUi.setup(specWithUrl, swaggerUiOptions)(req, res, next);
-});
+
+// Setup Swagger UI
+app.get('/api/docs', swaggerUi.setup(null, swaggerUiOptions));
 
 // Main API routes mounted under /api
 app.use('/api', apiRouter);
