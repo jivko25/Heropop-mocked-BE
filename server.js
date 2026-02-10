@@ -24,7 +24,39 @@ app.get('/health', (req, res) => {
 });
 
 // Swagger UI docs under /api/docs
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Configure Swagger UI for Vercel compatibility
+const swaggerUiOptions = {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Mock Backend API Documentation',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    tryItOutEnabled: true,
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+  },
+};
+
+// Dynamic swagger setup that updates server URL based on request
+app.use('/api/docs', swaggerUi.serve);
+app.get('/api/docs', (req, res, next) => {
+  // Update swagger spec with current request URL for Vercel
+  const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
+  const baseUrl = `${protocol}://${host}`;
+  
+  // Create a copy of swagger spec with updated server URL
+  const specWithUrl = {
+    ...swaggerSpec,
+    servers: [
+      { url: baseUrl, description: 'Current server' },
+      { url: 'http://localhost:3000', description: 'Local development server' },
+    ],
+  };
+  
+  return swaggerUi.setup(specWithUrl, swaggerUiOptions)(req, res, next);
+});
 
 // Main API routes mounted under /api
 app.use('/api', apiRouter);
