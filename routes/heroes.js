@@ -12,6 +12,8 @@ const {
   animateHero,
   setBestFriend,
   unsetBestFriend,
+  getVoicePreviews,
+  getGreetingAudio,
 } = require('../services/heroesService');
 const { verifySession } = require('../services/authService');
 
@@ -312,6 +314,97 @@ router.get('/best-friend', verifySession, getBestFriend);
 
 /**
  * @swagger
+ * /api/heroes/best-friend/greeting-audio:
+ *   get:
+ *     summary: Get greeting audio URL for current best friend (mock)
+ *     tags: [Heroes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: X-Child-Id
+ *         in: header
+ *         schema:
+ *           type: string
+ *         description: Child ID (optional)
+ *     responses:
+ *       200:
+ *         description: Greeting audio URL (text from template with hero name and description)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 url:
+ *                   type: string
+ *                   example: "https://example.com/audio/greeting.mp3"
+ *                   description: Public URL to greeting audio
+ *                 audio_url:
+ *                   type: string
+ *                   example: "https://example.com/audio/greeting.mp3"
+ *                   description: Same as url (client compatibility)
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: No best friend set
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Няма зададен най-добър приятел."
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/best-friend/greeting-audio', verifySession, getGreetingAudio);
+
+/**
+ * @swagger
+ * /api/heroes/voice-previews:
+ *   get:
+ *     summary: List all voice previews for best friend (mock)
+ *     tags: [Heroes]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Array of voices with id, title, url (and label, audio_url)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                     example: "voice-male-1"
+ *                     description: Unique voice identifier (use as voice_id in set-best-friend)
+ *                   title:
+ *                     type: string
+ *                     example: "Мъжки глас 1"
+ *                   label:
+ *                     type: string
+ *                     example: "Мъжки глас 1"
+ *                     description: Same as title (client compatibility)
+ *                   url:
+ *                     type: string
+ *                     example: "https://example.com/samples/voice-male-1.mp3"
+ *                     description: Public URL to sample audio
+ *                   audio_url:
+ *                     type: string
+ *                     example: "https://example.com/samples/voice-male-1.mp3"
+ *                     description: Same as url (client compatibility)
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/voice-previews', verifySession, getVoicePreviews);
+
+/**
+ * @swagger
  * /api/heroes/{id}:
  *   get:
  *     summary: Get hero details by ID (mock)
@@ -493,7 +586,7 @@ router.post('/:id/animate', verifySession, animateHero);
  * @swagger
  * /api/heroes/{id}/set-best-friend:
  *   post:
- *     summary: Set hero as best friend (mock)
+ *     summary: Set hero as best friend (mock); optional body for display_name, description, voice_id
  *     tags: [Heroes]
  *     security:
  *       - bearerAuth: []
@@ -509,6 +602,26 @@ router.post('/:id/animate', verifySession, animateHero);
  *         schema:
  *           type: string
  *         description: Child ID (optional, for parent access)
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               display_name:
+ *                 type: string
+ *                 example: "Супер Дракон"
+ *                 description: Display name for the best friend (optional)
+ *               description:
+ *                 type: string
+ *                 maxLength: 500
+ *                 example: "Приятел който пази кралството."
+ *                 description: Short description for greeting/display (optional, max 500 chars)
+ *               voice_id:
+ *                 type: string
+ *                 example: "voice-male-1"
+ *                 description: Voice ID from GET /api/heroes/voice-previews (optional)
  *     responses:
  *       200:
  *         description: Hero successfully set as best friend
@@ -539,50 +652,37 @@ router.post('/:id/animate', verifySession, animateHero);
  *                     mission:
  *                       type: string
  *                       nullable: true
- *                       example: "Спасяване на света"
  *                     backstory:
  *                       type: string
  *                       nullable: true
- *                       example: "История на героя..."
  *                     created_at:
  *                       type: string
  *                       format: date-time
- *                       example: "2024-01-15T10:30:00Z"
  *                     is_best_friend:
  *                       type: boolean
  *                       example: true
+ *                     display_name:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "Супер Дракон"
+ *                     description:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "Приятел който пази кралството."
+ *                     voice_id:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "voice-male-1"
  *       401:
  *         description: Unauthorized
  *       403:
  *         description: Forbidden (no access to hero)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Нямате право да променяте този герой."
  *       404:
  *         description: Hero not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Героят не е намерен."
+ *       422:
+ *         description: Validation error (e.g. description over 500 chars)
  *       500:
  *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Възникна грешка при обработката на заявката."
  */
 router.post('/:id/set-best-friend', verifySession, setBestFriend);
 

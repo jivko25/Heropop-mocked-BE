@@ -500,7 +500,7 @@ async function getBestFriend(req, res) {
       bestFriend.is_best_friend = false;
     }
 
-    // Return best friend hero
+    // Return best friend hero (include best-friend meta if set)
     return res.status(200).json({
       id: bestFriend.id,
       name: bestFriend.name,
@@ -510,6 +510,9 @@ async function getBestFriend(req, res) {
       backstory: bestFriend.backstory || null,
       created_at: bestFriend.created_at,
       is_best_friend: true,
+      display_name: bestFriend.best_friend_display_name || null,
+      description: bestFriend.best_friend_description || null,
+      voice_id: bestFriend.best_friend_voice_id || null,
     });
   } catch (err) {
     console.error('[MOCK] getBestFriend error', err);
@@ -908,11 +911,50 @@ ${hero.backstory ? `История: ${hero.backstory}` : ''}
   }
 }
 
+// Optional body: display_name (string), description (string, max 500), voice_id (string from voice-previews)
+// Saves these fields on the hero when set as best friend.
+function applyBestFriendMeta(hero, body) {
+  if (!body) return;
+  if (body.display_name !== undefined && body.display_name !== null) {
+    hero.best_friend_display_name =
+      typeof body.display_name === 'string' && body.display_name.trim().length > 0
+        ? body.display_name.trim()
+        : null;
+  }
+  if (body.description !== undefined && body.description !== null) {
+    const desc = typeof body.description === 'string' ? body.description.trim() : '';
+    hero.best_friend_description = desc.length > 0 ? (desc.length <= 500 ? desc : desc.slice(0, 500)) : null;
+  }
+  if (body.voice_id !== undefined && body.voice_id !== null) {
+    hero.best_friend_voice_id =
+      typeof body.voice_id === 'string' && body.voice_id.trim().length > 0
+        ? body.voice_id.trim()
+        : null;
+  }
+}
+
+function formatBestFriendHero(hero) {
+  return {
+    id: hero.id,
+    name: hero.name,
+    image_url: hero.image_url,
+    video_url: hero.video_url || null,
+    mission: hero.mission || null,
+    backstory: hero.backstory || null,
+    created_at: hero.created_at,
+    is_best_friend: true,
+    display_name: hero.best_friend_display_name || null,
+    description: hero.best_friend_description || null,
+    voice_id: hero.best_friend_voice_id || null,
+  };
+}
+
 // POST /api/heroes/:id/set-best-friend
 async function setBestFriend(req, res) {
   try {
     const { id } = req.params;
     const childId = getCurrentChildId(req);
+    const body = req.body || {};
 
     const hero = findHeroById(id);
 
@@ -928,53 +970,112 @@ async function setBestFriend(req, res) {
       });
     }
 
-    // Check if hero is already best friend (idempotent operation)
+    // Validate description max 500 chars if provided
+    if (body.description !== undefined && body.description !== null && typeof body.description === 'string') {
+      if (body.description.length > 500) {
+        return res.status(422).json({
+          message: 'Описанието не може да надвишава 500 символа.',
+          errors: { description: ['Описанието не може да надвишава 500 символа.'] },
+        });
+      }
+    }
+
+    // Only one best friend per child: remove status from all other heroes, then set this one and save body fields.
     if (hero.is_best_friend === true) {
-      // Return success even if already set (idempotent)
+      // Already best friend: just update meta (display_name, description, voice_id) and return
+      applyBestFriendMeta(hero, body);
+      hero.updated_at = new Date().toISOString();
       return res.status(200).json({
         message: 'Hero успешно направен най-добър приятел',
-        hero: {
-          id: hero.id,
-          name: hero.name,
-          image_url: hero.image_url,
-          video_url: hero.video_url || null,
-          mission: hero.mission || null,
-          backstory: hero.backstory || null,
-          created_at: hero.created_at,
-          is_best_friend: true,
-        },
+        hero: formatBestFriendHero(hero),
       });
     }
 
-    // Remove best friend status from other heroes of the same child
+    // Remove best friend status from all other heroes of this child (single active best friend)
     heroes.forEach((h) => {
       if (h.child_id === childId && h.is_best_friend === true) {
         h.is_best_friend = false;
       }
     });
 
-    // Set this hero as best friend
+    // Apply and save body fields (display_name, description, voice_id), then mark as best friend
+    applyBestFriendMeta(hero, body);
     hero.is_best_friend = true;
     hero.updated_at = new Date().toISOString();
 
-    // Return success response
     return res.status(200).json({
       message: 'Hero успешно направен най-добър приятел',
-      hero: {
-        id: hero.id,
-        name: hero.name,
-        image_url: hero.image_url,
-        video_url: hero.video_url || null,
-        mission: hero.mission || null,
-        backstory: hero.backstory || null,
-        created_at: hero.created_at,
-        is_best_friend: true,
-      },
+      hero: formatBestFriendHero(hero),
     });
   } catch (err) {
     console.error('[MOCK] setBestFriend error', err);
     return res.status(500).json({
       message: 'Възникна грешка при обработката на заявката.',
+    });
+  }
+}
+
+// GET /api/heroes/voice-previews – list of test voices (id, title, url; also label, audio_url)
+const VOICE_PREVIEWS = [
+  { id: 'voice-male-1', title: 'Мъжки глас 1', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+  { id: 'voice-male-2', title: 'Мъжки глас 2', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+  { id: 'voice-female-1', title: 'Дамски глас 1', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
+  { id: 'voice-female-2', title: 'Дамски глас 2', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
+  { id: 'voice-child-1', title: 'Детски глас 1', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' },
+];
+
+async function getVoicePreviews(req, res) {
+  try {
+    const list = VOICE_PREVIEWS.map((v) => ({
+      id: v.id,
+      title: v.title,
+      url: v.url,
+      label: v.title,
+      audio_url: v.url,
+    }));
+    return res.status(200).json(list);
+  } catch (err) {
+    console.error('[MOCK] getVoicePreviews error', err);
+    return res.status(500).json({
+      error: 'Неуспешно зареждане на гласовете (mock).',
+    });
+  }
+}
+
+// GET /api/heroes/best-friend/greeting-audio – greeting audio URL for current best friend
+const GREETING_AUDIO_TEMPLATE = (name, description) =>
+  `Здравей! Аз съм ${name}. ${description || 'Радвам се да те запозная!'}`;
+
+async function getGreetingAudio(req, res) {
+  try {
+    const childId = getCurrentChildId(req);
+
+    const bestFriend = heroes.find(
+      (h) => h.child_id === childId && (h.is_best_friend === true || h.is_best_friend === 'true')
+    );
+
+    if (!bestFriend) {
+      return res.status(404).json({
+        message: 'Няма зададен най-добър приятел.',
+      });
+    }
+
+    const displayName = bestFriend.best_friend_display_name || bestFriend.name;
+    const description = bestFriend.best_friend_description || bestFriend.backstory || bestFriend.mission || '';
+    const greetingText = GREETING_AUDIO_TEMPLATE(displayName, description);
+
+    // Mock: backend "generates" greeting audio – return a public URL to sample audio
+    // In real implementation: TTS with selected voice_id, upload to storage, return URL
+    const mockAudioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+
+    return res.status(200).json({
+      url: mockAudioUrl,
+      audio_url: mockAudioUrl,
+    });
+  } catch (err) {
+    console.error('[MOCK] getGreetingAudio error', err);
+    return res.status(500).json({
+      error: 'Грешка при генериране на поздравителното аудио (mock).',
     });
   }
 }
@@ -1090,4 +1191,6 @@ module.exports = {
   animateHero,
   setBestFriend,
   unsetBestFriend,
+  getVoicePreviews,
+  getGreetingAudio,
 };
