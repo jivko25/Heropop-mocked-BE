@@ -297,9 +297,6 @@ router.get('/categories', verifySession, getCategories);
  *                 audio_url:
  *                   type: string
  *                   example: "https://cdn.example.com/stories/abc123.mp3"
- *                 audioUrl:
- *                   type: string
- *                   example: "https://cdn.example.com/stories/abc123.mp3"
  *                 text:
  *                   type: string
  *                   example: "Имало едно време..."

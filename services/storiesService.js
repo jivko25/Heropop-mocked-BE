@@ -159,8 +159,7 @@ async function generateStory(req, res) {
     const mockAudioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
 
     return res.status(200).json({
-      // audio_url: mockAudioUrl,
-      // audioUrl: mockAudioUrl,
+      audio_url: mockAudioUrl,
       text: storyData.text,
       content: storyData.text,
     });

@@ -6,6 +6,7 @@ const codesRouter = require('./codes');
 const parentRouter = require('./parent');
 const heroesRouter = require('./heroes');
 const storiesRouter = require('./stories');
+const factsRouter = require('./facts');
 
 const router = express.Router();
 
@@ -29,6 +30,9 @@ router.use('/heroes', heroesRouter);
 
 // /api/stories/*
 router.use('/stories', storiesRouter);
+
+// /api/facts/*
+router.use('/facts', factsRouter);
 
 module.exports = router;
 
