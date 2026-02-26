@@ -79,6 +79,99 @@ function storyBelongsToChild(story, childId) {
   return story && story.child_id === String(childId);
 }
 
+// GET /api/stories/categories – list of story categories
+const STORY_CATEGORIES = [
+  { id: 1, text: 'Приключения', color: '#6366F1', emoji: '🗺️' },
+  { id: 2, text: 'Животни', color: '#10B981', emoji: '🐾' },
+  { id: 3, text: 'Вълшебство', color: '#8B5CF6', emoji: '✨' },
+  { id: 4, text: 'Космос', color: '#0EA5E9', emoji: '🚀' },
+  { id: 5, text: 'Природни чудеса', color: '#22C55E', emoji: '🌿' },
+  { id: 6, text: 'Динозаври', color: '#F59E0B', emoji: '🦕' },
+];
+
+async function getCategories(req, res) {
+  try {
+    return res.status(200).json({
+      categories: STORY_CATEGORIES.map((c) => ({
+        id: c.id,
+        text: c.text,
+        color: c.color,
+        emoji: c.emoji,
+      })),
+    });
+  } catch (err) {
+    console.error('[MOCK] getCategories error', err);
+    return res.status(500).json({
+      error: 'Неуспешно зареждане на категориите (mock).',
+    });
+  }
+}
+
+// POST /api/stories/generate – generate story by category_id (AI mock: returns text + audio_url)
+const MOCK_STORY_BY_CATEGORY = {
+  1: {
+    text: 'Имало едно време един смел пътешественик, който тръгна да открие скрито съкровище в далечна планина. По пътя срещна приятели и преодоля много предизвикателства. Накрая откри не само съкровище, но и истинско приключение.',
+  },
+  2: {
+    text: 'В една малка гора живееше много добро зайче. То помагаше на всички животни и всеки ден носило радост. Един ден срещна лисица, която също искала приятели – и така станаха най-добри приятели.',
+  },
+  3: {
+    text: 'Вълшебницата от гората знаеше тайните на природата. С едно магическо пръчка тя помагаше на цветята да растат и на животните да се разбират. Когато децата идваха при нея, тя им разказваше приказки, пълни с чудо.',
+  },
+  4: {
+    text: 'Двама приятели построиха ракета и отлетяха към звездите. Посетиха луната и Марс и срещнаха приятелски извънземни. Заедно откриха, че вселената е пълна с приключения и приятелство.',
+  },
+  5: {
+    text: 'В една тиха поляна имаше езеро, където рибките играеха и птичките пееха. Децата идваха там да слушат шума на водичката и да гледат как природата създава чудеса всеки ден.',
+  },
+  6: {
+    text: 'Малък динозавърче живееше в гората преди много години. То обичаше да бяга и да играе с приятелите си. Когато слънцето залязваше, всички се прибираха в пещерата си и спокойно заспиваха.',
+  },
+};
+
+async function generateStory(req, res) {
+  try {
+    const childId = getCurrentChildId(req);
+    const { category_id: categoryId } = req.body || {};
+
+    const id = categoryId !== undefined && categoryId !== null
+      ? (typeof categoryId === 'string' ? parseInt(categoryId, 10) : Number(categoryId))
+      : NaN;
+
+    if (Number.isNaN(id) || !Number.isInteger(id) || id < 1) {
+      return res.status(400).json({
+        error: 'category_id е задължително и трябва да е валиден идентификатор на категория.',
+      });
+    }
+
+    const category = STORY_CATEGORIES.find((c) => c.id === id);
+    if (!category) {
+      return res.status(400).json({
+        error: 'Невалидна категория.',
+      });
+    }
+
+    const storyData = MOCK_STORY_BY_CATEGORY[id] || {
+      text: `Приказка на тема „${category.text}“. Имало едно време в една далечна земя...`,
+    };
+
+    // Mock: backend would call AI with category theme + rules (child-safe, length), then TTS for audio
+    const mockAudioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+
+    return res.status(200).json({
+      // audio_url: mockAudioUrl,
+      // audioUrl: mockAudioUrl,
+      text: storyData.text,
+      content: storyData.text,
+    });
+  } catch (err) {
+    console.error('[MOCK] generateStory error', err);
+    return res.status(500).json({
+      error: 'Грешка при генериране на приказка (mock).',
+    });
+  }
+}
+
 // Helper to validate image file
 function validateImageFile(file) {
   if (!file) {
@@ -596,4 +689,6 @@ module.exports = {
   animateStory,
   validateImage,
   animateImage,
+  getCategories,
+  generateStory,
 };

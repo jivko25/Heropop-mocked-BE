@@ -9,6 +9,8 @@ const {
   animateStory,
   validateImage,
   animateImage,
+  getCategories,
+  generateStory,
 } = require('../services/storiesService');
 const { verifySession } = require('../services/authService');
 
@@ -216,6 +218,102 @@ router.post('/validate-image', verifySession, upload.single('image'), validateIm
 router.post('/animate-image', verifySession, upload.single('image'), animateImage);
 
 router.get('/', verifySession, listStories);
+
+/**
+ * @swagger
+ * /api/stories/categories:
+ *   get:
+ *     summary: Get list of story categories (mock)
+ *     tags: [Stories]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of categories (id, text, color, emoji)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 categories:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                       text:
+ *                         type: string
+ *                         example: "Приключения"
+ *                       color:
+ *                         type: string
+ *                         example: "#6366F1"
+ *                       emoji:
+ *                         type: string
+ *                         example: "🗺️"
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/categories', verifySession, getCategories);
+
+/**
+ * @swagger
+ * /api/stories/generate:
+ *   post:
+ *     summary: Generate story by category (AI mock – returns text and audio URL)
+ *     tags: [Stories]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: X-Child-Id
+ *         in: header
+ *         schema:
+ *           type: string
+ *         description: Child ID (optional, for context)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - category_id
+ *             properties:
+ *               category_id:
+ *                 type: integer
+ *                 example: 1
+ *                 description: Category ID from GET /api/stories/categories
+ *     responses:
+ *       200:
+ *         description: Generated story (audio_url and/or text)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 audio_url:
+ *                   type: string
+ *                   example: "https://cdn.example.com/stories/abc123.mp3"
+ *                 audioUrl:
+ *                   type: string
+ *                   example: "https://cdn.example.com/stories/abc123.mp3"
+ *                 text:
+ *                   type: string
+ *                   example: "Имало едно време..."
+ *                 content:
+ *                   type: string
+ *                   example: "Имало едно време..."
+ *       400:
+ *         description: Missing or invalid category_id
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/generate', verifySession, generateStory);
 
 /**
  * @swagger
