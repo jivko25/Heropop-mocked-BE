@@ -8,6 +8,7 @@ const heroesRouter = require('./heroes');
 const storiesRouter = require('./stories');
 const factsRouter = require('./facts');
 const learningRouter = require('./learning');
+const aiSessionsRouter = require('./aiSessions');
 
 const router = express.Router();
 
@@ -37,6 +38,9 @@ router.use('/facts', factsRouter);
 
 // /api/learning/*
 router.use('/learning', learningRouter);
+
+// /api/ai-sessions/*
+router.use('/ai-sessions', aiSessionsRouter);
 
 module.exports = router;
 

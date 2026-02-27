@@ -296,6 +296,128 @@ async function generateChildAiSessionSummary(req, res) {
   return res.status(200).json({ summary });
 }
 
+// --- Child-facing AI session (Дневник / Сподели с най-добър приятел) ---
+// GET /api/ai-sessions/current – current session for active child
+// POST /api/ai-sessions/send-message – send message, get answer, store in session
+
+function getCurrentSessionForChild(childId) {
+  const sid = String(childId);
+  const list = aiSessions
+    .filter((s) => s.child_id === sid)
+    .sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  const session = list[0];
+  if (!session) {
+    return { id: null, title: null, created_at: null, messages: [] };
+  }
+  return {
+    id: session.id,
+    title: session.title,
+    created_at: session.created_at,
+    messages: (session.messages || []).map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      created_at: m.created_at,
+    })),
+  };
+}
+
+function nextSessionId() {
+  const numeric = aiSessions.reduce((max, s) => {
+    const n = parseInt(String(s.id).replace(/^sess_/, ''), 10);
+    return isNaN(n) ? max : Math.max(max, n);
+  }, 0);
+  return `sess_${numeric + 1}`;
+}
+
+function nextMessageId(session) {
+  const msgs = session.messages || [];
+  const numeric = msgs.reduce((max, m) => {
+    const n = parseInt(String(m.id).replace(/^m/, ''), 10);
+    return isNaN(n) ? max : Math.max(max, n);
+  }, 0);
+  return `m${numeric + 1}`;
+}
+
+// Mock AI reply based on user content and optional context
+function mockAiReply(userContent, _previousMessages) {
+  const lower = (userContent || '').toLowerCase();
+  if (lower.includes('как си') || lower.includes('здравей')) {
+    return 'Здравей! Добре съм, благодаря. С какво мога да ти помогна днес?';
+  }
+  if (lower.includes('тъжен') || lower.includes('тъжно') || lower.includes('съжалявам')) {
+    return 'Съжалявам, че се чувстваш така. Искаш ли да ми разкажеш повече? Винаги съм тук за теб.';
+  }
+  if (lower.includes('приятел') || lower.includes('скарах')) {
+    return 'Понякога се караме с приятелите си. Важно е да говорим и да се извиняваме. Искаш ли да помислим заедно как да се помириш?';
+  }
+  return 'Това е интересно! Разкажи ми още, ако искаш. Аз съм тук да те слушам и да помагам.';
+}
+
+async function sendMessageForChild(childId, content) {
+  const sid = String(childId);
+  const trimmed =
+    typeof content === 'string' ? content.trim() : '';
+  if (!trimmed) {
+    return { error: 'content е задължително', status: 400 };
+  }
+
+  let session = aiSessions
+    .filter((s) => s.child_id === sid)
+    .sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    )[0];
+
+  const now = new Date().toISOString();
+  if (!session) {
+    const title = `Дневник – ${now.slice(0, 10)}`;
+    session = {
+      id: nextSessionId(),
+      child_id: sid,
+      child_name: 'Алекс',
+      title,
+      created_at: now,
+      message_count: 0,
+      messages: [],
+      summary: null,
+    };
+    aiSessions.push(session);
+  }
+
+  if (!session.messages) session.messages = [];
+
+  const userMsgId = nextMessageId(session);
+  session.messages.push({
+    id: userMsgId,
+    role: 'user',
+    content: trimmed,
+    created_at: now,
+  });
+
+  const previousMessages = session.messages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
+  const answer = mockAiReply(trimmed, previousMessages);
+
+  const assistantMsgId = nextMessageId(session);
+  const assistantNow = new Date().toISOString();
+  session.messages.push({
+    id: assistantMsgId,
+    role: 'assistant',
+    content: answer,
+    created_at: assistantNow,
+  });
+
+  session.message_count = session.messages.length;
+
+  const mockAudioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+  return {
+    answer,
+    // audio_url: mockAudioUrl,
+    session_id: session.id,
+  };
+}
+
 // In-memory notification settings for parent
 let notificationSettings = {
   email_frequency: 'weekly',
@@ -370,5 +492,7 @@ module.exports = {
   generateChildAiSessionSummary,
   getNotificationSettings,
   updateNotificationSettings,
+  getCurrentSessionForChild,
+  sendMessageForChild,
 };
 
