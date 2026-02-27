@@ -7,6 +7,7 @@ const parentRouter = require('./parent');
 const heroesRouter = require('./heroes');
 const storiesRouter = require('./stories');
 const factsRouter = require('./facts');
+const learningRouter = require('./learning');
 
 const router = express.Router();
 
@@ -33,6 +34,9 @@ router.use('/stories', storiesRouter);
 
 // /api/facts/*
 router.use('/facts', factsRouter);
+
+// /api/learning/*
+router.use('/learning', learningRouter);
 
 module.exports = router;
 
