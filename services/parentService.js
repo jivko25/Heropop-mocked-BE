@@ -356,7 +356,7 @@ function mockAiReply(userContent, _previousMessages) {
   return 'Това е интересно! Разкажи ми още, ако искаш. Аз съм тук да те слушам и да помагам.';
 }
 
-async function sendMessageForChild(childId, content) {
+async function sendMessageForChild(childId, content, options = {}) {
   const sid = String(childId);
   const trimmed =
     typeof content === 'string' ? content.trim() : '';
@@ -364,11 +364,16 @@ async function sendMessageForChild(childId, content) {
     return { error: 'content е задължително', status: 400 };
   }
 
-  let session = aiSessions
-    .filter((s) => s.child_id === sid)
-    .sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    )[0];
+  const startNewSession = options.start_new_session === true;
+  let session = null;
+
+  if (!startNewSession) {
+    session = aiSessions
+      .filter((s) => s.child_id === sid)
+      .sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )[0];
+  }
 
   const now = new Date().toISOString();
   if (!session) {
@@ -396,7 +401,9 @@ async function sendMessageForChild(childId, content) {
     created_at: now,
   });
 
-  const previousMessages = session.messages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
+  const previousMessages = startNewSession
+    ? []
+    : session.messages.slice(0, -1).slice(-10).map((m) => ({ role: m.role, content: m.content }));
   const answer = mockAiReply(trimmed, previousMessages);
 
   const assistantMsgId = nextMessageId(session);
@@ -413,7 +420,7 @@ async function sendMessageForChild(childId, content) {
   const mockAudioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
   return {
     answer,
-    // audio_url: mockAudioUrl,
+    audio_url: mockAudioUrl,
     session_id: session.id,
   };
 }

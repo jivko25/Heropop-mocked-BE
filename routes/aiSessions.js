@@ -115,6 +115,10 @@ router.get('/current', verifySession, (req, res) => {
  *                 type: string
  *                 description: User message (from voice or manual input)
  *                 example: "Днес в училище се скарах с приятел."
+ *               start_new_session:
+ *                 type: boolean
+ *                 description: If true, create a new empty session for the child, set as current, and process message in it (no prior context). If missing or false, use current session and its context.
+ *                 example: false
  *     responses:
  *       200:
  *         description: AI answer; optionally audio_url. If no audio_url, FE uses TTS.
@@ -143,8 +147,8 @@ router.get('/current', verifySession, (req, res) => {
 router.post('/send-message', verifySession, async (req, res) => {
   try {
     const childId = getCurrentChildId(req);
-    const { content } = req.body || {};
-    const result = await sendMessageForChild(childId, content);
+    const { content, start_new_session } = req.body || {};
+    const result = await sendMessageForChild(childId, content, { start_new_session });
     if (result.error && result.status === 400) {
       return res.status(400).json({ error: result.error });
     }

@@ -349,13 +349,17 @@ router.post('/generate', verifySession, generateStory);
  *                 image_url:
  *                   type: string
  *                   example: "https://picsum.photos/400/300"
+ *                 video_url:
+ *                   type: string
+ *                   nullable: true
+ *                   description: Optional
  *                 content:
  *                   type: string
- *                   example: "Приказка на тема: Приключения на храбър рицар. Имало едно време..."
+ *                   nullable: true
+ *                   description: Optional
  *                 created_at:
  *                   type: string
  *                   format: date-time
- *                   example: "2024-01-15T10:30:00Z"
  *       401:
  *         description: Unauthorized
  *       403:
@@ -389,26 +393,16 @@ router.get('/:id', verifySession, getStory);
  *               title:
  *                 type: string
  *                 example: "Приказка за храбрия рицар"
- *                 minLength: 1
  *                 maxLength: 200
- *                 description: Story title (required, 1-200 characters)
- *               theme:
- *                 type: string
- *                 example: "Приключения на храбър рицар"
- *                 minLength: 3
- *                 maxLength: 100
- *                 description: Story theme (required, 3-100 characters, used to generate content)
+ *                 description: Story title (optional; if missing or empty, BE sets a default title)
  *               image:
  *                 type: string
  *                 format: binary
- *                 description: Image file (optional, if provided, image_url is not needed)
+ *                 description: Image file (required if image_url not provided)
  *               image_url:
  *                 type: string
  *                 example: "https://picsum.photos/400/300"
- *                 description: URL to image (optional, if provided, image file is not needed)
- *             required:
- *               - title
- *               - theme
+ *                 description: URL to image (required if image file not provided)
  *     responses:
  *       201:
  *         description: Story created successfully
@@ -426,13 +420,9 @@ router.get('/:id', verifySession, getStory);
  *                 image_url:
  *                   type: string
  *                   example: "https://picsum.photos/400/300"
- *                 content:
- *                   type: string
- *                   example: "Приказка на тема: Приключения на храбър рицар. Имало едно време..."
  *                 created_at:
  *                   type: string
  *                   format: date-time
- *                   example: "2024-01-15T10:30:00Z"
  *       400:
  *         description: Bad request (validation error)
  *       401:
