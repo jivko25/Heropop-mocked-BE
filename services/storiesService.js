@@ -259,8 +259,6 @@ async function getStory(req, res) {
 
     const story = findStoryById(id);
 
-    console.log('story', story);
-
     if (!story) {
       return res.status(404).json({
         message: 'Приказката не е намерена.',
